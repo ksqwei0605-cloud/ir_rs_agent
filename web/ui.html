@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IR-RS-Agent - 开放环境红外遥感处理智能体</title>
+  <style>
+    /* ==================== 1. 全局与基础样式 ==================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #08111f;
+      color: #e2e8f0;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 24px;
+      gap: 16px;
+      overflow-x: hidden;
+    }
+
+    /* 滚动条极简样式 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0d1726; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+
+    /* 通用卡片背景与边框 */
+    .card {
+      background-color: #0d1726;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    /* ==================== 2. 顶部标题栏 ==================== */
+    header.header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #0d1726;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px 20px;
+      height: 56px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-svg {
+      width: 28px;
+      height: 28px;
+      color: #3b82f6;
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-left: 8px;
+      font-weight: normal;
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #10b981;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    /* ==================== 3. 主体网格布局 ==================== */
+    .main-container {
+      display: grid;
+      grid-template-columns: 32% 67%;
+      gap: 1%;
+      flex: 1;
+    }
+
+    /* ==================== 4. 左侧：任务输入 ==================== */
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .conversation-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .conversation-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-conversation {
+      border: 1px solid #334155;
+      background: #101c2e;
+      color: #cbd5e1;
+      border-radius: 6px;
+      padding: 5px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .btn-conversation:hover { border-color: #38bdf8; color: #e0f2fe; }
+
+    .conversation-state {
+      color: #7dd3fc;
+      font-size: 11px;
+      padding: 6px 9px;
+      border-radius: 6px;
+      border: 1px solid #1e3a5f;
+      background: rgba(14, 116, 144, .08);
+    }
+
+    .history-panel {
+      background: #08111f;
+      border: 1px solid #243247;
+      border-radius: 8px;
+      padding: 8px;
+      max-height: 190px;
+      overflow-y: auto;
+    }
+
+    .history-panel[hidden] { display: none !important; }
+
+    .history-item {
+      width: 100%;
+      text-align: left;
+      border: 0;
+      border-bottom: 1px solid #1e293b;
+      background: transparent;
+      color: #dbeafe;
+      padding: 8px 6px;
+      cursor: pointer;
+    }
+
+    .history-item:last-child { border-bottom: 0; }
+    .history-item:hover { background: rgba(56, 189, 248, .08); }
+    .history-title { display: block; font-size: 12px; font-weight: 600; }
+    .history-preview { display: block; color: #64748b; font-size: 10px; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+    .chat-thread {
+      min-height: 150px;
+      max-height: 270px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      padding: 10px;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      background: #050b14;
+    }
+
+    .chat-message {
+      max-width: 92%;
+      padding: 8px 10px;
+      border-radius: 9px;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      color: #eff6ff;
+      background: #164e63;
+      border-bottom-right-radius: 3px;
+    }
+
+    .chat-message.assistant {
+      align-self: flex-start;
+      color: #dbeafe;
+      background: #172033;
+      border: 1px solid #26364d;
+      border-bottom-left-radius: 3px;
+    }
+
+    .chat-message.system {
+      align-self: center;
+      max-width: 100%;
+      color: #64748b;
+      background: transparent;
+      text-align: center;
+      font-size: 11px;
+    }
+
+    .chat-attachment { display: block; color: #bae6fd; font-size: 10px; margin-top: 5px; }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .section-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 多行文本框 */
+    .instruction-input {
+      width: 100%;
+      height: 76px;
+      background-color: #08111f;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #f8fafc;
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.5;
+      resize: none;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .instruction-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* 文件上传卡片 */
+    .file-upload-box {
+      border: 1px dashed #334155;
+      border-radius: 8px;
+      padding: 10px;
+      background: #08111f;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+
+    .file-upload-box:hover,
+    .file-upload-box.dragover {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.08);
+    }
+
+    .file-input { display: none; }
+
+    .upload-hint {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+
+    .file-thumb {
+      width: 42px;
+      height: 42px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid #334155;
+    }
+
+    .file-info {
+      flex: 1;
+    }
+
+    .file-name {
+      font-size: 13px;
+      color: #f1f5f9;
+      font-weight: 500;
+    }
+
+    .file-meta {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    .check-icon {
+      color: #10b981;
+      font-size: 16px;
+    }
+
+    /* 高级参数 */
+    .param-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #cbd5e1;
+    }
+
+    .param-select {
+      background: #08111f;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .personality-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(51, 65, 85, 0.65);
+    }
+
+    .personality-copy {
+      min-width: 0;
+    }
+
+    .personality-title {
+      color: #e2e8f0;
+      font-size: 12px;
+    }
+
+    .personality-hint {
+      color: #64748b;
+      font-size: 10px;
+      margin-top: 2px;
+    }
+
+    .personality-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #cbd5e1;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .personality-toggle input {
+      appearance: none;
+      width: 34px;
+      height: 18px;
+      border-radius: 999px;
+      background: #334155;
+      position: relative;
+      cursor: pointer;
+      transition: background-color .2s;
+    }
+
+    .personality-toggle input::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 2px;
+      top: 2px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform .2s;
+    }
+
+    .personality-toggle input:checked {
+      background: #ec4899;
+    }
+
+    .personality-toggle input:checked::after {
+      transform: translateX(16px);
+    }
+
+    /* 主运行按钮 */
+    .btn-submit {
+      width: 100%;
+      background-color: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.2s;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn-submit:hover {
+      background-color: #1d4ed8;
+    }
+
+    .btn-submit:disabled {
+      background-color: #334155;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ==================== 5. 右侧：智能体回答 ==================== */
+    .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+
+    .agent-header-status {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 13px;
+      color: #94a3b8;
+      background: #08111f;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-value {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    /* 动态结果区：检测任务在图片右侧显示类别统计 */
+    .result-visual-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .result-visual-grid.has-stats {
+      grid-template-columns: minmax(0, 1.55fr) minmax(230px, .75fr);
+    }
+
+    .image-viewport {
+      background-color: #050b14;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      height: 250px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .result-stats-panel {
+      min-width: 0;
+      background-color: #08111f;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .result-stats-panel[hidden] {
+      display: none;
+    }
+
+    .result-image {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .result-image[hidden],
+    .empty-state[hidden] {
+      display: none !important;
+    }
+
+    /* 空状态提示 */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      gap: 10px;
+    }
+
+    /* Agent 分析依据 */
+    .analysis-section {
+      background-color: #08111f;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    @media (max-width: 980px) {
+      .main-container { grid-template-columns: 1fr; }
+      .result-visual-grid.has-stats { grid-template-columns: 1fr; }
+      .image-viewport { height: 230px; }
+    }
+
+    .answer-box {
+      background: rgba(56, 189, 248, 0.07);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #dbeafe;
+      font-size: 13px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .error-box {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fecaca;
+    }
+
+    .analysis-list {
+      list-style: none;
+      font-size: 12px;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .analysis-list li {
+      position: relative;
+      padding-left: 12px;
+      line-height: 1.4;
+    }
+
+    .analysis-list li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #3b82f6;
+    }
+
+    .warning-tip {
+      color: #fbbf24 !important;
+      font-weight: 500;
+    }
+
+    .warning-tip::before {
+      color: #fbbf24 !important;
+    }
+
+    /* 统计表格 */
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .mini-table th, .mini-table td {
+      border: 1px solid #1e293b;
+      padding: 5px 8px;
+      text-align: left;
+    }
+
+    .mini-table th {
+      background-color: #0d1726;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+
+    .mini-table td {
+      color: #cbd5e1;
+    }
+
+    /* ==================== 6. 底部：执行轨迹 ==================== */
+    .trace-panel {
+      background-color: #0d1726;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 12px 20px;
+    }
+
+    .trace-flow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .trace-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.4;
+      transition: opacity 0.3s;
+    }
+
+    .trace-step.active {
+      opacity: 1;
+    }
+
+    .step-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #1e293b;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+    }
+
+    .trace-step.completed .step-icon {
+      background: #10b981;
+      color: #fff;
+    }
+
+    .trace-step.running .step-icon {
+      background: #3b82f6;
+      color: #fff;
+      animation: pulse 1s infinite alternate;
+    }
+
+    .step-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .step-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .step-subtext {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .trace-arrow {
+      color: #334155;
+      font-size: 14px;
+    }
+
+    @keyframes pulse {
+      from { opacity: 0.6; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. 顶部标题栏 -->
+  <header class="header">
+    <div class="brand">
+      <svg class="logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>
+        <circle cx="12" cy="12" r="3"/>
+      </svg>
+      <div>
+        <span class="brand-title">IR-RS-Agent</span>
+        <span class="brand-subtitle">开放环境红外遥感处理智能体</span>
+      </div>
+    </div>
+    <div class="status-tag" id="serverStatus">
+      <span class="status-dot"></span>
+      <span id="serverStatusText">正在连接 Agent...</span>
+    </div>
+  </header>
+
+  <!-- 2. 主体内容区 -->
+  <main class="main-container">
+    
+    <!-- 左侧：任务输入 -->
+    <section class="card left-panel">
+      <div class="conversation-toolbar">
+        <div class="panel-title">与 Agent 对话</div>
+        <div class="conversation-actions">
+          <button class="btn-conversation" type="button" onclick="toggleHistory()">历史对话</button>
+          <button class="btn-conversation" type="button" onclick="newConversation()">＋ 新对话</button>
+        </div>
+      </div>
+
+      <div class="conversation-state" id="conversationState">新对话 · 首轮请上传红外影像</div>
+
+      <div class="history-panel" id="historyPanel" hidden>
+        <div id="historyList"><div class="chat-message system">正在读取历史对话…</div></div>
+      </div>
+
+      <div class="chat-thread" id="chatThread" aria-live="polite">
+        <div class="chat-message system">上传一张红外影像并告诉我任务。完成后可以继续追问，不需要重复上传图片。</div>
+      </div>
+      
+      <!-- 自然语言指令 -->
+      <div>
+        <div class="section-label">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          输入消息
+        </div>
+        <textarea id="instructionInput" class="instruction-input" placeholder="给 Agent 发送消息，或继续追问上一轮结果"></textarea>
+        <div class="char-count"><span id="charCount">0</span> / 200</div>
+      </div>
+
+      <!-- 数据上传 -->
+      <div>
+        <div class="section-label">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+          数据上传
+        </div>
+        <div class="file-upload-box" id="uploadBox" tabindex="0" role="button" aria-label="上传红外或遥感图像">
+          <input class="file-input" id="fileInput" type="file" multiple accept="image/*,.tif,.tiff">
+          <img id="fileThumb" class="file-thumb" alt="上传预览">
+          <div class="file-info">
+            <div class="file-name" id="fileName">点击或拖拽上传图像</div>
+            <div class="file-meta" id="fileMeta">支持单张红外影像，或同时选择 B1、B2、B3</div>
+          </div>
+          <div class="check-icon" id="uploadCheck">＋</div>
+        </div>
+        <div class="upload-hint">首轮上传图片；后续可直接追问并沿用上一张图片。上传新图时会切换本会话的分析对象。</div>
+      </div>
+
+      <!-- 高级参数 -->
+      <div>
+        <div class="param-row">
+          <span>⚙ 高级参数（置信度阈值）</span>
+          <select class="param-select" id="confidenceSelect">
+            <option value="0.30">0.30</option>
+            <option value="0.50">0.50</option>
+            <option value="0.75">0.75</option>
+          </select>
+        </div>
+        <div class="personality-row">
+          <div class="personality-copy">
+            <div class="personality-title">临时表达风格</div>
+            <div class="personality-hint">只改变说话语气，不影响路由、检测结果和结论</div>
+          </div>
+          <label class="personality-toggle" title="开启后由小喵用猫娘语气回答">
+            <input type="checkbox" id="personalityToggle">
+            <span>🐾 小喵模式</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 开始分析按钮 -->
+      <button class="btn-submit" id="submitBtn" onclick="runAgent()">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <span>发送给 Agent</span>
+      </button>
+    </section>
+
+    <!-- 右侧：智能体回答 -->
+    <section class="card right-panel">
+      <div class="panel-title">智能体回答</div>
+
+      <!-- 状态摘要 -->
+      <div class="agent-header-status">
+        <div class="status-item">
+          <svg width="14" height="14" fill="none" stroke="#38bdf8" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          任务类型：<span class="status-value" id="resTaskType">等待自然语言路由</span>
+        </div>
+        <div class="status-item">
+          <svg width="14" height="14" fill="none" stroke="#38bdf8" stroke-width="2" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          使用工具：<span class="status-value" id="resTool">待选择</span>
+        </div>
+        <div class="status-item">
+          状态：<span class="status-value" id="resStatus">等待任务</span>
+        </div>
+      </div>
+
+      <!-- 动态可视化：左侧结果图，检测任务右侧显示类别统计 -->
+      <div class="result-visual-grid" id="resultVisualGrid">
+        <div class="image-viewport" id="imageViewport">
+          <div class="empty-state" id="emptyState"><span style="font-size:26px">⌁</span><span>结果图将在任务完成后显示</span></div>
+          <img id="resultImg" class="result-image" alt="Agent 任务结果图" hidden>
+        </div>
+        <div class="result-stats-panel" id="resultStatsPanel" hidden>
+          <div style="font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 8px;">检测类别统计</div>
+          <table class="mini-table">
+            <thead><tr><th>类别</th><th>数量</th><th>说明</th></tr></thead>
+            <tbody id="statTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="answer-box" id="answerText">等待任务提交。Agent 将在这里返回自然语言结论。</div>
+
+      <!-- 由 Agent 返回的通用任务分析 -->
+      <div class="analysis-section" id="analysisSection">
+        <div style="font-size: 13px; font-weight: 600; color: #f1f5f9; margin-bottom: 6px;">Agent 分析依据</div>
+        <ul class="analysis-list" id="analysisList"><li>提交任务后，Agent 将在这里说明图像理解、任务需求、工具结果与可靠性。</li></ul>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 3. 底部：执行轨迹 -->
+  <footer class="trace-panel">
+    <div class="panel-title" style="font-size: 13px;">执行轨迹</div>
+    <div class="trace-flow">
+      
+      <div class="trace-step" id="step1">
+        <div class="step-icon">1</div>
+        <div class="step-content">
+          <span class="step-title">任务理解</span>
+          <span class="step-subtext" id="sub1">等待中</span>
+        </div>
+      </div>
+
+      <div class="trace-arrow">→</div>
+
+      <div class="trace-step" id="step2">
+        <div class="step-icon">2</div>
+        <div class="step-content">
+          <span class="step-title">工具选择</span>
+          <span class="step-subtext" id="sub2">等待中</span>
+        </div>
+      </div>
+
+      <div class="trace-arrow">→</div>
+
+      <div class="trace-step" id="step3">
+        <div class="step-icon">3</div>
+        <div class="step-content">
+          <span class="step-title">模型执行</span>
+          <span class="step-subtext" id="sub3">已完成</span>
+        </div>
+      </div>
+
+      <div class="trace-arrow">→</div>
+
+      <div class="trace-step" id="step4">
+        <div class="step-icon">4</div>
+        <div class="step-content">
+          <span class="step-title">结果汇总</span>
+          <span class="step-subtext" id="sub4">11 个目标</span>
+        </div>
+      </div>
+
+      <div class="trace-arrow">→</div>
+
+      <div class="trace-step" id="step5">
+        <div class="step-icon">5</div>
+        <div class="step-content">
+          <span class="step-title">返回结果</span>
+          <span class="step-subtext" id="sub5">已完成</span>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- 4. JavaScript 交互逻辑 -->
+  <script>
+    let selectedFiles = [];
+    let progressTimers = [];
+    let currentConversationId = null;
+    const input = document.getElementById('instructionInput');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBox = document.getElementById('uploadBox');
+
+    async function readApiResponse(response) {
+      const text = await response.text();
+      if (!text.trim()) {
+        const error = new Error(`服务器返回空响应（HTTP ${response.status || '未知'}），连接可能短暂中断。`);
+        error.retryable = true;
+        throw error;
+      }
+      try {
+        return JSON.parse(text);
+      } catch (_) {
+        const error = new Error(`服务器返回了无法解析的响应（HTTP ${response.status}）。`);
+        error.retryable = response.status >= 500;
+        throw error;
+      }
+    }
+
+    async function fetchApi(url, options = {}, retries = 1) {
+      let lastError;
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const response = await fetch(url, options);
+          const data = await readApiResponse(response);
+          return {response, data};
+        } catch (error) {
+          lastError = error;
+          const retryable = error.retryable || error instanceof TypeError;
+          if (!retryable || attempt === retries) break;
+          await new Promise(resolve => setTimeout(resolve, 350));
+        }
+      }
+      throw lastError || new Error('无法连接 Agent 服务。');
+    }
+
+    async function postAnalyze(buildForm, requestId) {
+      let lastError;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const {response, data} = await fetchApi(
+            `/api/analyze?request=${encodeURIComponent(requestId)}&attempt=${attempt}`,
+            {method: 'POST', body: buildForm(), cache: 'no-store'},
+            0
+          );
+          if (response.status === 405 && attempt === 0) {
+            await new Promise(resolve => setTimeout(resolve, 400));
+            continue;
+          }
+          return {response, data};
+        } catch (error) {
+          lastError = error;
+          if (attempt === 0 && (error.retryable || error instanceof TypeError)) {
+            await new Promise(resolve => setTimeout(resolve, 400));
+            continue;
+          }
+          throw error;
+        }
+      }
+      throw lastError || new Error('请求未能到达 Agent 服务。');
+    }
+
+    input.addEventListener('input', (e) => {
+      document.getElementById('charCount').innerText = e.target.value.length;
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!document.getElementById('submitBtn').disabled) runAgent();
+      }
+    });
+
+    uploadBox.addEventListener('click', () => fileInput.click());
+    uploadBox.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') fileInput.click();
+    });
+    fileInput.addEventListener('change', () => setFiles([...fileInput.files]));
+    ['dragenter', 'dragover'].forEach(type => uploadBox.addEventListener(type, (e) => {
+      e.preventDefault(); uploadBox.classList.add('dragover');
+    }));
+    ['dragleave', 'drop'].forEach(type => uploadBox.addEventListener(type, (e) => {
+      e.preventDefault(); uploadBox.classList.remove('dragover');
+    }));
+    uploadBox.addEventListener('drop', (e) => setFiles([...e.dataTransfer.files]));
+
+    function setFiles(files) {
+      selectedFiles = files.filter(file => file.type.startsWith('image/') || /\.(tif|tiff)$/i.test(file.name));
+      const name = document.getElementById('fileName');
+      const meta = document.getElementById('fileMeta');
+      const thumb = document.getElementById('fileThumb');
+      if (!selectedFiles.length) {
+        name.innerText = '点击或拖拽上传图像';
+        meta.innerText = currentConversationId ? '不上传则继续使用本会话上一张图像' : '支持单张红外影像，或同时选择 B1、B2、B3';
+        document.getElementById('uploadCheck').innerText = '＋';
+        thumb.removeAttribute('src');
+        return;
+      }
+      name.innerText = selectedFiles.length === 1 ? selectedFiles[0].name : `已选择 ${selectedFiles.length} 张：${selectedFiles.map(f => f.name).join('、')}`;
+      const total = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+      meta.innerText = `${(total / 1024 / 1024).toFixed(2)} MB · ${selectedFiles.length === 3 ? '三波段模式' : '单图模式'}`;
+      document.getElementById('uploadCheck').innerText = '✓';
+      if (!/\.(tif|tiff)$/i.test(selectedFiles[0].name)) thumb.src = URL.createObjectURL(selectedFiles[0]);
+      else thumb.removeAttribute('src');
+    }
+
+    function appendChatMessage(role, content, imageNames = []) {
+      const thread = document.getElementById('chatThread');
+      const bubble = document.createElement('div');
+      bubble.className = `chat-message ${role}`;
+      bubble.innerText = content;
+      if (imageNames.length) {
+        const attachment = document.createElement('span');
+        attachment.className = 'chat-attachment';
+        attachment.innerText = `📎 ${imageNames.join('、')}`;
+        bubble.appendChild(attachment);
+      }
+      thread.appendChild(bubble);
+      thread.scrollTop = thread.scrollHeight;
+      return bubble;
+    }
+
+    function newConversation() {
+      currentConversationId = null;
+      selectedFiles = [];
+      fileInput.value = '';
+      document.getElementById('chatThread').innerHTML = '';
+      appendChatMessage('system', '这是一个新对话。请上传红外影像并描述任务，之后可以围绕结果持续追问。');
+      document.getElementById('conversationState').innerText = '新对话 · 首轮请上传红外影像';
+      document.getElementById('historyPanel').hidden = true;
+      document.getElementById('fileName').innerText = '点击或拖拽上传图像';
+      document.getElementById('fileMeta').innerText = '支持单张红外影像，或同时选择 B1、B2、B3';
+      document.getElementById('uploadCheck').innerText = '＋';
+      document.getElementById('fileThumb').removeAttribute('src');
+      input.value = '';
+      document.getElementById('charCount').innerText = '0';
+      document.getElementById('resTaskType').innerText = '等待自然语言路由';
+      document.getElementById('resTool').innerText = '待选择';
+      document.getElementById('resStatus').innerText = '等待任务';
+      document.getElementById('resStatus').style.color = '#38bdf8';
+      document.getElementById('answerText').className = 'answer-box';
+      document.getElementById('answerText').innerText = '等待任务提交。Agent 将在这里返回自然语言结论。';
+      document.getElementById('resultImg').hidden = true;
+      document.getElementById('emptyState').hidden = false;
+      document.getElementById('emptyState').lastElementChild.innerText = '结果图将在任务完成后显示';
+      document.getElementById('resultStatsPanel').hidden = true;
+      document.getElementById('resultVisualGrid').classList.remove('has-stats');
+      document.getElementById('analysisList').innerHTML = '<li>提交任务后，Agent 将在这里说明图像理解、任务需求、工具结果与可靠性。</li>';
+      resetTrace();
+      input.focus();
+    }
+
+    async function toggleHistory() {
+      const panel = document.getElementById('historyPanel');
+      if (!panel.hidden) { panel.hidden = true; return; }
+      panel.hidden = false;
+      const list = document.getElementById('historyList');
+      list.innerHTML = '<div class="chat-message system">正在读取历史对话…</div>';
+      try {
+        const {response, data} = await fetchApi('/api/conversations', {cache: 'no-store'});
+        if (!response.ok) throw new Error(data.detail || '读取历史失败');
+        list.innerHTML = '';
+        if (!(data.conversations || []).length) {
+          list.innerHTML = '<div class="chat-message system">还没有历史对话。</div>';
+          return;
+        }
+        data.conversations.forEach(item => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'history-item';
+          const title = document.createElement('span');
+          title.className = 'history-title';
+          title.innerText = item.title;
+          const preview = document.createElement('span');
+          preview.className = 'history-preview';
+          preview.innerText = `${item.message_count} 条消息 · ${item.preview || '等待继续对话'}`;
+          button.append(title, preview);
+          button.addEventListener('click', () => openConversation(item.id));
+          list.appendChild(button);
+        });
+      } catch (error) {
+        list.innerHTML = '';
+        appendChatMessage('system', `历史对话读取失败：${error.message || error}`);
+      }
+    }
+
+    async function openConversation(conversationId) {
+      try {
+        const {response, data} = await fetchApi(`/api/conversations/${encodeURIComponent(conversationId)}`, {cache: 'no-store'});
+        if (!response.ok) throw new Error(data.detail || '恢复会话失败');
+        currentConversationId = data.id;
+        selectedFiles = [];
+        fileInput.value = '';
+        const thread = document.getElementById('chatThread');
+        thread.innerHTML = '';
+        (data.messages || []).forEach(message => appendChatMessage(message.role, message.content, message.image_names || []));
+        if (!(data.messages || []).length) appendChatMessage('system', '该会话还没有消息。');
+        document.getElementById('conversationState').innerText = `历史会话 · ${data.title} · 可以直接继续追问`;
+        document.getElementById('historyPanel').hidden = true;
+        document.getElementById('fileName').innerText = '沿用该会话上一张红外影像';
+        document.getElementById('fileMeta').innerText = '直接发送消息即可继续；也可以上传新图';
+        document.getElementById('uploadCheck').innerText = '✓';
+        const reversedMessages = [...(data.messages || [])].reverse();
+        const lastAssistant = reversedMessages.find(message => message.role === 'assistant' && message.result?.result_image_url)
+          || reversedMessages.find(message => message.role === 'assistant' && message.result);
+        if (lastAssistant) renderResult({...lastAssistant.result, answer: lastAssistant.content, conversation_id: data.id}, true);
+        input.value = '';
+        document.getElementById('charCount').innerText = '0';
+        input.focus();
+      } catch (error) {
+        showError(error.message || String(error));
+      }
+    }
+
+    async function checkHealth() {
+      try {
+        const {response, data} = await fetchApi('/api/health', {cache: 'no-store'});
+        if (!response.ok) throw new Error(data.detail || '服务不可用');
+        document.getElementById('serverStatusText').innerText = data.model_loaded ? 'Agent 已就绪 · Qwen API 已连接' : 'Agent 在线 · 首次任务将连接 Qwen API';
+      } catch (error) {
+        document.getElementById('serverStatusText').innerText = 'Agent 后端未连接';
+        document.getElementById('serverStatus').style.borderColor = 'rgba(239,68,68,.45)';
+      }
+    }
+
+    async function runAgent() {
+      const query = input.value.trim();
+      if (!query) return showError('请输入自然语言任务指令。');
+      if (!currentConversationId && selectedFiles.length !== 1 && selectedFiles.length !== 3) {
+        return showError('新对话的第一轮请上传 1 张图像；卫星三波段任务请上传 B1、B2、B3。');
+      }
+      if (selectedFiles.length && selectedFiles.length !== 1 && selectedFiles.length !== 3) {
+        return showError('每轮可上传 1 张图像，或卫星 B1、B2、B3 共 3 张。');
+      }
+
+      const btn = document.getElementById('submitBtn');
+      const sentFileNames = selectedFiles.map(file => file.name);
+      const preserveRightPanel = Boolean(currentConversationId && selectedFiles.length === 0);
+      appendChatMessage('user', query, sentFileNames);
+      input.value = '';
+      document.getElementById('charCount').innerText = '0';
+      btn.disabled = true;
+      btn.innerHTML = '<span>Agent 正在分析...</span>';
+      if (!preserveRightPanel) {
+        document.getElementById('resStatus').innerText = '⏳ 分析中...';
+        document.getElementById('resStatus').style.color = '#38bdf8';
+        document.getElementById('resTaskType').innerText = 'Qwen 正在理解任务';
+        document.getElementById('resTool').innerText = '等待 Agent 路由';
+        document.getElementById('answerText').className = 'answer-box';
+        document.getElementById('answerText').innerText = '正在理解任务并加载模型，首次运行可能需要约 30 秒。';
+        document.getElementById('resultStatsPanel').hidden = true;
+        document.getElementById('resultVisualGrid').classList.remove('has-stats');
+        document.getElementById('resultImg').hidden = true;
+        document.getElementById('emptyState').hidden = false;
+        document.getElementById('emptyState').lastElementChild.innerText = 'Agent 正在处理红外影像';
+        document.getElementById('analysisList').innerHTML = '<li>Qwen 正在观察图像、分析任务并选择处理工具。</li>';
+        resetTrace();
+        startProgress();
+      }
+
+      const requestId = (globalThis.crypto?.randomUUID?.() || `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`)
+        .replaceAll('-', '').padEnd(32, '0').slice(0, 32);
+      const confidence = document.getElementById('confidenceSelect').value;
+      const personality = document.getElementById('personalityToggle').checked ? 'catgirl' : 'none';
+      const conversationAtSend = currentConversationId;
+      const filesAtSend = [...selectedFiles];
+      const buildForm = () => {
+        const form = new FormData();
+        form.append('query', query);
+        form.append('confidence', confidence);
+        form.append('request_id', requestId);
+        form.append('personality', personality);
+        if (conversationAtSend) form.append('conversation_id', conversationAtSend);
+        filesAtSend.forEach(file => form.append('files', file, file.name));
+        return form;
+      };
+
+      try {
+        const {response, data} = await postAnalyze(buildForm, requestId);
+        if (!response.ok) throw new Error(data.detail || data.error || '分析失败');
+        currentConversationId = data.conversation_id || currentConversationId;
+        document.getElementById('conversationState').innerText = '当前会话已保存 · 可以直接继续追问或上传新图';
+        appendChatMessage('assistant', data.answer || '分析完成。');
+        if (!data.history_reused) renderResult(data);
+        selectedFiles = [];
+        fileInput.value = '';
+        document.getElementById('fileName').innerText = '沿用本会话上一张红外影像';
+        document.getElementById('fileMeta').innerText = '直接发送消息即可继续；上传新图将切换分析对象';
+        document.getElementById('uploadCheck').innerText = '✓';
+        document.getElementById('fileThumb').removeAttribute('src');
+      } catch (error) {
+        appendChatMessage('assistant', `执行失败：${error.message || error}`);
+        if (preserveRightPanel) {
+          document.getElementById('conversationState').innerText = '本轮追问失败 · 右侧保留上一轮工具结果';
+        } else {
+          showError(error.message || String(error));
+        }
+      } finally {
+        stopProgress();
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><span>发送给 Agent</span>';
+      }
+    }
+
+    function startProgress() {
+      setStepState(1, 'running', '理解自然语言指令...');
+      progressTimers.push(setTimeout(() => {
+        setStepState(1, 'completed', '指令与影像已接收');
+        setStepState(2, 'running', 'Qwen 正在选择工具...');
+      }, 900));
+      progressTimers.push(setTimeout(() => {
+        setStepState(2, 'completed', '路由决策完成');
+        setStepState(3, 'running', '任务工具执行中...');
+      }, 3000));
+    }
+
+    function stopProgress() {
+      progressTimers.forEach(clearTimeout);
+      progressTimers = [];
+    }
+
+    function resetTrace() {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById(`step${i}`);
+        el.className = 'trace-step';
+        el.querySelector('.step-icon').innerText = i;
+        document.getElementById(`sub${i}`).innerText = '等待中';
+      }
+    }
+
+    function setStepState(stepNum, state, text) {
+      const el = document.getElementById(`step${stepNum}`);
+      el.className = state === 'running' ? 'trace-step active running' : 'trace-step active completed';
+      el.querySelector('.step-icon').innerText = state === 'running' ? '•' : '✓';
+      if (text) document.getElementById(`sub${stepNum}`).innerText = text;
+    }
+
+    function renderResult(data) {
+      if (data.history_reused) return;
+      const total = Object.values(data.count_by_class || {}).reduce((a, b) => a + Number(b), 0);
+      document.getElementById('resTaskType').innerText = data.task_type || 'Agent 已完成路由';
+      document.getElementById('resTool').innerText = data.tool || '—';
+      document.getElementById('resStatus').innerText = '✓ 已完成';
+      document.getElementById('resStatus').style.color = '#10b981';
+      document.getElementById('answerText').innerText = data.answer || '分析完成。';
+
+      const img = document.getElementById('resultImg');
+      const empty = document.getElementById('emptyState');
+      if (data.result_image_url) {
+        img.src = data.result_image_url;
+        img.hidden = false;
+        empty.hidden = true;
+      } else if (selectedFiles.length) {
+        img.src = URL.createObjectURL(selectedFiles[0]);
+        img.hidden = false;
+        empty.hidden = true;
+      } else if (img.getAttribute('src')) {
+        img.hidden = false;
+        empty.hidden = true;
+      } else {
+        img.hidden = true;
+        empty.hidden = false;
+        empty.lastElementChild.innerText = '该轮对话没有生成可视化结果';
+      }
+
+      const analysis = [
+        `图像观察：${data.image_description || 'Qwen 已读取上传图像。'}`,
+        `任务需求：${data.task_analysis || '已理解用户的自然语言任务。'}`,
+        `工具结果：${data.result_analysis || '任务工具已返回处理结果。'}`,
+        `可靠性判断：${data.reliability_assessment || '模型结果建议结合原图复核。'}`,
+        `运行信息：${data.model || '—'}；工具执行 ${Number(data.timing_ms || 0).toFixed(1)} ms；完整 Agent 流程 ${Number(data.total_ms || 0).toFixed(1)} ms。`
+      ];
+      const list = document.getElementById('analysisList');
+      list.innerHTML = '';
+      analysis.forEach(text => {
+        const li = document.createElement('li');
+        li.innerText = text;
+        if (text.includes('可靠性判断')) li.className = 'warning-tip';
+        list.appendChild(li);
+      });
+
+      const table = document.getElementById('statTableBody');
+      table.innerHTML = '';
+      const counts = Object.entries(data.count_by_class || {});
+      const isDetection = counts.length > 0 || (data.tool || '').includes('detect');
+      const statsPanel = document.getElementById('resultStatsPanel');
+      const visualGrid = document.getElementById('resultVisualGrid');
+      if (data.conversation_reply) {
+        // 结果解释类追问保持上一轮图片和类别统计，避免破坏上下文。
+      } else if (isDetection) {
+        if (counts.length > 0) counts.forEach(([label, count]) => appendStatRow(table, label, count, '检测目标'));
+        else appendStatRow(table, '未检出', 0, '当前阈值下无目标');
+        appendStatRow(table, '合计', total, '—', true);
+        statsPanel.hidden = false;
+        visualGrid.classList.add('has-stats');
+      } else {
+        statsPanel.hidden = true;
+        visualGrid.classList.remove('has-stats');
+      }
+
+      setStepState(1, 'completed', 'Qwen 已完成看图与任务理解');
+      setStepState(2, 'completed', `${data.tool || '工具'} · ${data.trace?.routing_reason || '工具选择完成'}`);
+      setStepState(3, 'completed', `${data.model || '模型'} · ${Number(data.timing_ms || 0).toFixed(0)} ms`);
+      setStepState(4, 'completed', data.conversation_reply ? '沿用上一轮工具结果' : (isDetection ? `${total} 个目标` : '任务结果已生成'));
+      setStepState(5, 'completed', 'Qwen 已根据工具结果生成自然语言回答');
+    }
+
+    function appendStatRow(table, label, count, note, total = false) {
+      const row = document.createElement('tr');
+      if (total) row.style.fontWeight = '600';
+      [label, String(count), note].forEach((text, index) => {
+        const cell = document.createElement('td');
+        cell.innerText = text;
+        if (!total && index === 0) { cell.style.color = '#10b981'; cell.style.fontWeight = '600'; }
+        row.appendChild(cell);
+      });
+      table.appendChild(row);
+    }
+
+    function showError(message) {
+      stopProgress();
+      document.getElementById('resStatus').innerText = '✕ 执行失败';
+      document.getElementById('resStatus').style.color = '#ef4444';
+      const box = document.getElementById('answerText');
+      box.className = 'answer-box error-box';
+      box.innerText = `执行失败：${message}`;
+      setStepState(5, 'completed', '请检查输入后重试');
+    }
+
+    checkHealth();
+  </script>
+</body>
+</html>

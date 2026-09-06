@@ -1,0 +1,25 @@
+# 环境与缓存
+.venv/
+venv/
+__pycache__/
+*.pyc
+runtime/
+results/
+*.csv
+*.log
+*.err
+
+# 密钥与凭据（绝不提交）
+.env
+*.pem
+id_*
+authorized_keys
+
+# 大文件与权重（按说明另行获取）
+*.pt
+*.pth
+*.tar.gz
+*.zip
+weights/
+models/
+stage/

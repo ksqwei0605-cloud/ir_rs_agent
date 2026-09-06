@@ -1,0 +1,12 @@
+fastapi>=0.115,<1
+uvicorn[standard]>=0.34,<1
+python-multipart>=0.0.20,<1
+openai>=1.75,<3
+python-dotenv>=1.0,<2
+ultralytics==8.4.117
+opencv-python>=4.10,<5
+pillow>=11,<13
+numpy>=1.26,<3
+ftfy>=6.2,<7
+regex>=2024.11
+tqdm>=4.67,<5
